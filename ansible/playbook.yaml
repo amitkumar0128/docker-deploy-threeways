@@ -4,7 +4,7 @@
   connection: local
   gather_facts: false
   vars:
-    repo_url: "https://github.com/amitkumar0128/terra-ansible-jenkins-docker.git"
+    repo_url: "https://github.com/amitkumar0128/terra-ansible-jenkins-dockers.git"
     ssh_key: "./todo-app-key"
     key_name: todo-app-key
     key_path: ./todo-app-key
@@ -106,7 +106,7 @@
 
     - name: Ensure ubuntu user owns the app directory
       file:
-        path: /home/ubuntu/django-todo-docker
+        path: /home/ubuntu/terra-ansible-jenkins-docker
         owner: ubuntu
         group: ubuntu
         recurse: yes

@@ -8,7 +8,7 @@ variable "github_repo_url" {
 variable "github_repo_name" {
   description = "Public GitHub repo name"
   type        = string
-  default     = "django-todo-docker"
+  default     = "terra-ansible-jenkins-docker"
 }
 
 variable "instance_type" {
