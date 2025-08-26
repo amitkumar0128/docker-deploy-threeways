@@ -1,0 +1,130 @@
+---
+- name: Deploy ToDo App website to EC2
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    repo_url: "https://github.com/amitkumar0128/terra-ansible-jenkins-docker.git"
+    ssh_key: "./todo-app-key"
+    key_name: todo-app-key
+    key_path: ./todo-app-key
+
+  tasks:
+
+    - name: Generate a new SSH key pair
+      community.crypto.openssh_keypair:
+        path: "{{ key_path }}"
+        type: rsa
+        size: 4096
+        mode: '0600'
+
+    - name: Upload public key to AWS
+      amazon.aws.ec2_key:
+        name: "{{ key_name }}"
+        key_material: "{{ lookup('file', key_path + '.pub') }}"
+        state: present
+        region: ap-south-1
+
+    # 1. Create security group (without explicit VPC)
+    - name: Create web security group
+      amazon.aws.ec2_security_group:
+        name: "todo-sg"
+        description: "Allow SSH and HTTP"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "0.0.0.0/0"
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: "0.0.0.0/0"
+        rules_egress:
+          - proto: "-1"
+            cidr_ip: "0.0.0.0/0"
+      register: sg_result
+
+    # 2. Launch EC2 instance
+    - name: Launch Ubuntu EC2 instance
+      amazon.aws.ec2_instance:
+        name: "todo-app"
+        image_id: ami-02d26659fd82cf299
+        instance_type: t2.micro
+        region: ap-south-1
+        key_name: "{{ key_name }}"
+        security_group: "todo-sg"
+        tags:
+          Project: "Todo App"
+        wait: yes
+      register: ec2
+
+    # 3. Wait for SSH to be ready
+    - name: Wait for SSH access
+      wait_for:
+        host: "{{ ec2.instances[0].public_ip_address }}"
+        port: 22
+        delay: 10
+        timeout: 300
+
+    # 4. Add EC2 to temporary inventory
+    - name: Add EC2 instance to inventory
+      add_host:
+        name: "todo-app"
+        ansible_host: "{{ ec2.instances[0].public_ip_address }}"
+        ansible_user: ubuntu
+        ansible_ssh_private_key_file: "{{ ssh_key }}"
+        repo_url: "{{ repo_url }}"
+        passed_ssh_key: "{{ ssh_key }}"
+
+- name: Configure web server
+  hosts: todo-app
+  become: yes
+  vars:
+    repo_url: "{{ hostvars['todo-app']['repo_url'] }}"
+  tasks:
+    - name: Install Git Docker and Docker-Compose
+      apt:
+        name: [git, docker.io, docker-compose-v2]
+        update_cache: yes
+
+    - name: Clone Todo App code
+      git:
+        repo: "{{ repo_url }}"
+        dest: /home/ubuntu/django-todo-docker
+        clone: yes
+        update: yes
+
+    - name: Add user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Reboot the server (so group change takes effect)
+      reboot:
+        reboot_timeout: 300
+
+    - name: Ensure ubuntu user owns the app directory
+      file:
+        path: /home/ubuntu/django-todo-docker
+        owner: ubuntu
+        group: ubuntu
+        recurse: yes
+
+    - name: Start the Todo App using Docker Compose
+      become: false
+      shell: docker compose up -d
+      args:
+        chdir: /home/ubuntu/django-todo-docker
+
+- name: Display deployment info
+  hosts: localhost
+  vars:
+    ssh_key: "{{ hostvars['todo-app']['passed_ssh_key'] }}"
+  connection: local
+  tasks:
+    - name: Show access information
+      debug:
+        msg: |
+          SSH: ssh -i {{ ssh_key }} ubuntu@{{ hostvars['todo-app']['ansible_host'] }}
+          Website: http://{{ hostvars['todo-app']['ansible_host'] }}
