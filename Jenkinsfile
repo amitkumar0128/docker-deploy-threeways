@@ -5,7 +5,7 @@ pipeline {
         stage("Code") {
             steps {
                 script {
-                    clone("https://github.com/amitkumar0128/terra-ansible-jenkins-docker.git","main")
+                    clone("https://github.com/amitkumar0128/docker-deploy-threeways.git","main")
                 }
             }
         }
