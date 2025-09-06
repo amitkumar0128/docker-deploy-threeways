@@ -4,7 +4,7 @@
   connection: local
   gather_facts: false
   vars:
-    repo_url: "https://github.com/amitkumar0128/terra-ansible-jenkins-dockers.git"
+    repo_url: "https://github.com/amitkumar0128/docker-deploy-threeways.git"
     ssh_key: "./todo-app-key"
     key_name: todo-app-key
     key_path: ./todo-app-key
@@ -90,7 +90,7 @@
     - name: Clone Todo App code
       git:
         repo: "{{ repo_url }}"
-        dest: /home/ubuntu/django-todo-docker
+        dest: /home/ubuntu/docker-deploy-threeways
         clone: yes
         update: yes
 
@@ -106,7 +106,7 @@
 
     - name: Ensure ubuntu user owns the app directory
       file:
-        path: /home/ubuntu/terra-ansible-jenkins-docker
+        path: /home/ubuntu/docker-deploy-threeways
         owner: ubuntu
         group: ubuntu
         recurse: yes
@@ -115,7 +115,7 @@
       become: false
       shell: docker compose up -d
       args:
-        chdir: /home/ubuntu/django-todo-docker
+        chdir: /home/ubuntu/docker-deploy-threeways
 
 - name: Display deployment info
   hosts: localhost
